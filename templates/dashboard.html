@@ -1,0 +1,1731 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML Sentiment Analysis Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .model-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #f8f9ff 0%, #fff 100%);
+            border-radius: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .model-badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+        }
+
+        .dashboard-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #fff 0%, #f8f9ff 100%);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .stat-number {
+            font-size: 2.2rem;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .stat-subtitle {
+            font-size: 0.75rem;
+            color: #999;
+            font-style: italic;
+        }
+
+        .positive { color: #27ae60; }
+        .negative { color: #e74c3c; }
+        .neutral { color: #95a5a6; }
+        .total { color: #3498db; }
+        .accuracy { color: #8e44ad; }
+        .processed { color: #16a085; }
+
+        .upload-section {
+            background: linear-gradient(135deg, #f8f9ff 0%, #fff 100%);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border: 2px dashed #667eea;
+            transition: all 0.3s ease;
+        }
+
+        .upload-section:hover {
+            border-color: #764ba2;
+            background: linear-gradient(135deg, #fff 0%, #f8f9ff 100%);
+        }
+
+        .upload-area {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            font-size: 1.1rem;
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        .upload-subtext {
+            font-size: 0.9rem;
+            color: #999;
+            margin-bottom: 20px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-block;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .file-input-label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+            padding: 25px;
+            background: linear-gradient(135deg, #f8f9ff 0%, #fff 100%);
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #2c3e50;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        select, input {
+            padding: 12px 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .charts-container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .chart-wrapper {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            position: relative;
+            height: 450px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chart-wrapper canvas {
+            flex: 1;
+            max-height: 370px !important;
+            width: 100% !important;
+        }
+
+        .chart-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .model-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .comparison-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .model-name {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        .svm-model {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
+            color: white;
+        }
+
+        .gnb-model {
+            background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+            color: white;
+        }
+
+        .model-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .model-stat {
+            padding: 15px;
+            background: #f8f9ff;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .model-stat-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .model-stat-label {
+            font-size: 0.8rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        button:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        button:hover:before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(17, 153, 142, 0.3);
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(17, 153, 142, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 65, 108, 0.3);
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255, 65, 108, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 1.2rem;
+            color: #666;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(255, 65, 108, 0.3);
+        }
+
+        .success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(17, 153, 142, 0.3);
+        }
+
+        .warning {
+            background: linear-gradient(135deg, #f39c12 0%, #f1c40f 100%);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(243, 156, 18, 0.3);
+        }
+
+        .data-table {
+            margin-top: 30px;
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .data-table h3 {
+            padding: 20px 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin: 0;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .table-content {
+            max-height: 500px;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: #f8f9ff;
+            font-weight: 600;
+            color: #2c3e50;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        tr:hover {
+            background: #f8f9ff;
+        }
+
+        .confidence-bar {
+            width: 100%;
+            height: 6px;
+            background: #eee;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        .confidence-high { background: #27ae60; }
+        .confidence-medium { background: #f39c12; }
+        .confidence-low { background: #e74c3c; }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .charts-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .model-comparison {
+                grid-template-columns: 1fr;
+            }
+            
+            .filters {
+                grid-template-columns: 1fr;
+            }
+
+            .model-info {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 ML Sentiment Analysis Dashboard</h1>
+        
+        <div class="model-info">
+            <div class="model-badge">🔬 SVM Model Active</div>
+            <div class="model-badge">🧠 Naive Bayes Model Active</div>
+            <div class="model-badge">📊 TF-IDF Vectorizer</div>
+            <div class="model-badge">🌐 Sastrawi Preprocessing</div>
+        </div>
+        
+        <div id="messageContainer"></div>
+
+        <div class="upload-section">
+            <div class="upload-area">
+                <div class="upload-icon">📊</div>
+                <div class="upload-text">Upload CSV File untuk Analisis Sentiment ML</div>
+                <div class="upload-subtext">Drag & drop file CSV atau klik tombol di bawah<br>
+                    Kolom yang didukung: text, review, ulasan, komentar, content</div>
+                <div class="file-input-wrapper">
+                    <input type="file" id="csvFileInput" accept=".csv">
+                    <label for="csvFileInput" class="file-input-label">
+                        📁 Pilih File CSV
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-stats" id="statsContainer">
+            <div class="stat-card">
+                <div class="stat-number total" id="totalCount">0</div>
+                <div class="stat-label">Total Data</div>
+                <div class="stat-subtitle">Records processed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number processed" id="processedCount">0</div>
+                <div class="stat-label">Berhasil</div>
+                <div class="stat-subtitle">Successfully analyzed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number positive" id="positiveCount">0</div>
+                <div class="stat-label">Positif</div>
+                <div class="stat-subtitle">Positive sentiment</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number negative" id="negativeCount">0</div>
+                <div class="stat-label">Negatif</div>
+                <div class="stat-subtitle">Negative sentiment</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number neutral" id="neutralCount">0</div>
+                <div class="stat-label">Netral</div>
+                <div class="stat-subtitle">Neutral sentiment</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number accuracy" id="accuracyCount">0%</div>
+                <div class="stat-label">Success Rate</div>
+                <div class="stat-subtitle">Processing accuracy</div>
+            </div>
+        </div>
+
+        <div class="model-comparison" id="modelComparison" style="display: none;">
+            <div class="comparison-card">
+                <div class="model-name svm-model">🎯 Support Vector Machine</div>
+                <div class="model-stats">
+                    <div class="model-stat">
+                        <div class="model-stat-number" id="svmPositive">0</div>
+                        <div class="model-stat-label">Positif</div>
+                    </div>
+                    <div class="model-stat">
+                        <div class="model-stat-number" id="svmNegative">0</div>
+                        <div class="model-stat-label">Negatif</div>
+                    </div>
+                    <div class="model-stat">
+                        <div class="model-stat-number" id="svmNeutral">0</div>
+                        <div class="model-stat-label">Netral</div>
+                    </div>
+                </div>
+            </div>
+            <div class="comparison-card">
+                <div class="model-name gnb-model">🧠 Naive Bayes</div>
+                <div class="model-stats">
+                    <div class="model-stat">
+                        <div class="model-stat-number" id="gnbPositive">0</div>
+                        <div class="model-stat-label">Positif</div>
+                    </div>
+                    <div class="model-stat">
+                        <div class="model-stat-number" id="gnbNegative">0</div>
+                        <div class="model-stat-label">Negatif</div>
+                    </div>
+                    <div class="model-stat">
+                        <div class="model-stat-number" id="gnbNeutral">0</div>
+                        <div class="model-stat-label">Netral</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="filters" style="display: none;" id="filtersSection">
+            <div class="filter-group">
+                <label for="periodFilter">Periode:</label>
+                <select id="periodFilter">
+                    <option value="daily">Harian</option>
+                    <option value="weekly">Mingguan</option>
+                    <option value="monthly">Bulanan</option>
+                    <option value="quarterly">Kuartalan</option>
+                    <option value="yearly">Tahunan</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="yearFilter">Tahun:</label>
+                <select id="yearFilter">
+                    <option value="all">Semua Tahun</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="chartTypeFilter">Tipe Chart:</label>
+                <select id="chartTypeFilter">
+                    <option value="line">Line Chart</option>
+                    <option value="bar">Bar Chart</option>
+                    <option value="area">Area Chart</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="dateRangeStart">Tanggal Mulai:</label>
+                <input type="date" id="dateRangeStart">
+            </div>
+            
+            <div class="filter-group">
+                <label for="dateRangeEnd">Tanggal Akhir:</label>
+                <input type="date" id="dateRangeEnd">
+            </div>
+            
+            <div class="filter-group">
+                <label for="modelFilter">Model View:</label>
+                <select id="modelFilter">
+                    <option value="combined">Combined</option>
+                    <option value="svm">SVM Only</option>
+                    <option value="gnb">GNB Only</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="charts-container" id="chartsContainer" style="display: none;">
+            <div class="chart-wrapper">
+                <h3 class="chart-title">📈 Tren Sentiment (ML Models)</h3>
+                <canvas id="sentimentTrendChart"></canvas>
+            </div>
+            
+            <div class="chart-wrapper">
+                <h3 class="chart-title">🎯 Distribusi Sentiment</h3>
+                <canvas id="sentimentDistributionChart"></canvas>
+            </div>
+        </div>
+
+        <div class="actions" id="actionsSection" style="display: none;">
+            <button id="refreshBtn" class="btn-primary">🔄 Refresh Data</button>
+            <button id="exportCsvBtn" class="btn-success" disabled>📊 Export CSV</button>
+            <button id="exportChartBtn" class="btn-success" disabled>🖼️ Export Chart</button>
+            <button id="generateReportBtn" class="btn-primary" disabled>📄 Generate ML Report</button>
+            <button id="clearDataBtn" class="btn-danger" disabled>🗑️ Clear Data</button>
+        </div>
+
+        <div class="data-table" id="dataTableContainer" style="display: none;">
+            <h3>📋 ML Analysis Results</h3>
+            <div class="table-content">
+                <table id="dataTable">
+                    <thead>
+                        <tr>
+                            <th>Tanggal</th>
+                            <th>Text Preview</th>
+                            <th>SVM Result</th>
+                            <th>GNB Result</th>
+                            <th>Confidence</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class MLSentimentDashboard {
+            constructor() {
+                this.dashboardData = [];
+                this.sentimentChart = null;
+                this.distributionChart = null;
+                this.refreshTimer = null;
+                this.isLoading = false;
+                
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.setupDragAndDrop();
+                this.showMessage('🤖 ML-Powered Sentiment Analysis Dashboard siap digunakan!<br>Upload file CSV untuk memulai analisis dengan model SVM dan Naive Bayes.', 'success');
+            }
+
+            setupDragAndDrop() {
+                const uploadArea = document.querySelector('.upload-section');
+                
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    uploadArea.addEventListener(eventName, this.preventDefaults, false);
+                });
+
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    uploadArea.addEventListener(eventName, () => {
+                        uploadArea.style.borderColor = '#764ba2';
+                        uploadArea.style.background = 'linear-gradient(135deg, #fff 0%, #f0f0ff 100%)';
+                    }, false);
+                });
+
+                ['dragleave', 'drop'].forEach(eventName => {
+                    uploadArea.addEventListener(eventName, () => {
+                        uploadArea.style.borderColor = '#667eea';
+                        uploadArea.style.background = 'linear-gradient(135deg, #f8f9ff 0%, #fff 100%)';
+                    }, false);
+                });
+
+                uploadArea.addEventListener('drop', (e) => {
+                    const dt = e.dataTransfer;
+                    const files = dt.files;
+                    
+                    if (files.length > 0) {
+                        document.getElementById('csvFileInput').files = files;
+                        this.handleFileUpload({ target: { files: [files[0]] } });
+                    }
+                }, false);
+            }
+
+            preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            async handleFileUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                try {
+                    if (!file.name.toLowerCase().endsWith('.csv')) {
+                        throw new Error('Please upload a CSV file');
+                    }
+
+                    this.showLoading(true);
+                    this.isLoading = true;
+
+                    // Create FormData and upload to server
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    const response = await fetch('/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+
+                    if (!result.success) {
+                        throw new Error(result.error || 'Upload failed');
+                    }
+
+                    this.dashboardData = result.results || [];
+                    
+                    if (this.dashboardData.length === 0) {
+                        throw new Error('No data found in the uploaded file');
+                    }
+
+                    this.initializeDashboard();
+                    
+                    const stats = result.stats || {};
+                    const successMessage = `✅ ML Analysis Complete!<br>
+                        📊 Total: ${stats.total_rows || this.dashboardData.length} records<br>
+                        🎯 Processed: ${stats.successful_predictions || 0} successfully<br>
+                        ⚠️ Errors: ${stats.errors || 0}<br>
+                        ⏭️ Skipped: ${stats.skipped || 0}`;
+                    
+                    this.showMessage(successMessage, 'success');
+
+                } catch (error) {
+                    console.error('File upload error:', error);
+                    this.showMessage(`❌ Error: ${error.message}`, 'error');
+                } finally {
+                    this.showLoading(false);
+                    this.isLoading = false;
+                }
+            }
+
+            async fetchDashboardData() {
+                if (this.isLoading) return;
+                
+                try {
+                    this.showLoading(true);
+                    this.isLoading = true;
+
+                    const res = await fetch("/api/sentiment");
+                    
+                    if (!res.ok) {
+                        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                    }
+
+                    const data = await res.json();
+                    
+                    if (!data.success) {
+                        throw new Error(data.message || 'API request failed');
+                    }
+                    
+                    this.dashboardData = data.data || [];
+                    
+                    if (!this.dashboardData.length) {
+                        throw new Error("No data available from server");
+                    }
+
+                    this.initializeDashboard();
+                    this.showMessage("✅ Data refreshed successfully!", "success");
+                    
+                } catch (err) {
+                    console.error('Fetch error:', err);
+                    this.showMessage(`❌ Error: ${err.message}`, "error");
+                } finally {
+                    this.showLoading(false);
+                    this.isLoading = false;
+                }
+            }
+
+            initializeDashboard() {
+                this.showSections();
+                this.populateYearFilter();
+                this.setDefaultDateRange();
+                this.enableButtons();
+                this.updateDashboard();
+                this.updateDataTable();
+            }
+
+            showSections() {
+                document.getElementById('filtersSection').style.display = 'grid';
+                document.getElementById('chartsContainer').style.display = 'grid';
+                document.getElementById('actionsSection').style.display = 'flex';
+                document.getElementById('modelComparison').style.display = 'grid';
+            }
+
+            showLoading(show) {
+                const container = document.getElementById('statsContainer');
+                if (!container) return;
+                
+                if (show) {
+                    container.innerHTML = `
+                        <div class="loading">
+                            <div class="loading-spinner"></div>
+                            <div>🤖 Processing with ML models...</div>
+                            <div style="font-size: 0.9rem; margin-top: 10px; color: #666;">
+                                SVM & Naive Bayes analysis in progress
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = `
+                        <div class="stat-card">
+                            <div class="stat-number total" id="totalCount">0</div>
+                            <div class="stat-label">Total Data</div>
+                            <div class="stat-subtitle">Records processed</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number processed" id="processedCount">0</div>
+                            <div class="stat-label">Berhasil</div>
+                            <div class="stat-subtitle">Successfully analyzed</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number positive" id="positiveCount">0</div>
+                            <div class="stat-label">Positif</div>
+                            <div class="stat-subtitle">Positive sentiment</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number negative" id="negativeCount">0</div>
+                            <div class="stat-label">Negatif</div>
+                            <div class="stat-subtitle">Negative sentiment</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number neutral" id="neutralCount">0</div>
+                            <div class="stat-label">Netral</div>
+                            <div class="stat-subtitle">Neutral sentiment</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number accuracy" id="accuracyCount">0%</div>
+                            <div class="stat-label">Success Rate</div>
+                            <div class="stat-subtitle">Processing accuracy</div>
+                        </div>
+                    `;
+                }
+            }
+
+            showMessage(message, type) {
+                const container = document.getElementById('messageContainer');
+                container.innerHTML = `<div class="${type} fade-in">${message}</div>`;
+                setTimeout(() => {
+                    container.innerHTML = '';
+                }, 5000);
+            }
+
+            populateYearFilter() {
+                const yearSelect = document.getElementById("yearFilter");
+                if (!yearSelect) return;
+                
+                yearSelect.innerHTML = `<option value="all">Semua Tahun</option>`;
+                
+                const years = [...new Set(this.dashboardData.map(d => new Date(d.timestamp).getFullYear()))]
+                    .sort((a, b) => b - a);
+                
+                years.forEach(year => {
+                    yearSelect.innerHTML += `<option value="${year}">${year}</option>`;
+                });
+            }
+
+            setDefaultDateRange() {
+                const startDate = document.getElementById('dateRangeStart');
+                const endDate = document.getElementById('dateRangeEnd');
+                
+                if (!startDate || !endDate) return;
+                
+                if (this.dashboardData.length > 0) {
+                    const dates = this.dashboardData.map(d => new Date(d.timestamp));
+                    const minDate = new Date(Math.min(...dates));
+                    const maxDate = new Date(Math.max(...dates));
+                    
+                    startDate.value = minDate.toISOString().split('T')[0];
+                    endDate.value = maxDate.toISOString().split('T')[0];
+                }
+            }
+
+            getFilteredData() {
+                let filtered = [...this.dashboardData];
+                const yearFilter = document.getElementById("yearFilter")?.value;
+                const startDate = document.getElementById('dateRangeStart')?.value;
+                const endDate = document.getElementById('dateRangeEnd')?.value;
+
+                if (yearFilter && yearFilter !== "all") {
+                    filtered = filtered.filter(d => 
+                        new Date(d.timestamp).getFullYear().toString() === yearFilter
+                    );
+                }
+
+                if (startDate) {
+                    filtered = filtered.filter(d => 
+                        new Date(d.timestamp) >= new Date(startDate)
+                    );
+                }
+
+                if (endDate) {
+                    filtered = filtered.filter(d => 
+                        new Date(d.timestamp) <= new Date(endDate + 'T23:59:59')
+                    );
+                }
+
+                return filtered;
+            }
+
+            processDataForChart(periodType) {
+                const filtered = this.getFilteredData();
+                const modelFilter = document.getElementById("modelFilter")?.value || 'combined';
+                const grouped = {};
+
+                filtered.forEach(item => {
+                    const date = new Date(item.timestamp);
+                    let key = "";
+
+                    switch (periodType) {
+                        case "daily":
+                            key = date.toISOString().split("T")[0];
+                            break;
+                        case "weekly":
+                            const weekStart = new Date(date);
+                            weekStart.setDate(date.getDate() - date.getDay());
+                            key = weekStart.toISOString().split("T")[0];
+                            break;
+                        case "monthly":
+                            key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+                            break;
+                        case "quarterly":
+                            const quarter = Math.floor(date.getMonth() / 3) + 1;
+                            key = `${date.getFullYear()}-Q${quarter}`;
+                            break;
+                        case "yearly":
+                            key = date.getFullYear().toString();
+                            break;
+                        default:
+                            key = date.toISOString().split("T")[0];
+                    }
+
+                    if (!grouped[key]) {
+                        grouped[key] = { 
+                            svm_positive: 0, svm_negative: 0, svm_neutral: 0,
+                            gnb_positive: 0, gnb_negative: 0, gnb_neutral: 0
+                        };
+                    }
+
+                    // Count SVM results
+                    const svmSentiment = item.svm?.toLowerCase() || "";
+                    if (svmSentiment.includes("positif")) {
+                        grouped[key].svm_positive++;
+                    } else if (svmSentiment.includes("negatif")) {
+                        grouped[key].svm_negative++;
+                    } else {
+                        grouped[key].svm_neutral++;
+                    }
+
+                    // Count GNB results
+                    const gnbSentiment = item.gnb?.toLowerCase() || "";
+                    if (gnbSentiment.includes("positif")) {
+                        grouped[key].gnb_positive++;
+                    } else if (gnbSentiment.includes("negatif")) {
+                        grouped[key].gnb_negative++;
+                    } else {
+                        grouped[key].gnb_neutral++;
+                    }
+                });
+
+                const labels = Object.keys(grouped).sort();
+                
+                if (modelFilter === 'svm') {
+                    return {
+                        labels,
+                        positives: labels.map(l => grouped[l].svm_positive),
+                        negatives: labels.map(l => grouped[l].svm_negative),
+                        neutrals: labels.map(l => grouped[l].svm_neutral)
+                    };
+                } else if (modelFilter === 'gnb') {
+                    return {
+                        labels,
+                        positives: labels.map(l => grouped[l].gnb_positive),
+                        negatives: labels.map(l => grouped[l].gnb_negative),
+                        neutrals: labels.map(l => grouped[l].gnb_neutral)
+                    };
+                } else {
+                    // Combined average
+                    return {
+                        labels,
+                        positives: labels.map(l => Math.round((grouped[l].svm_positive + grouped[l].gnb_positive) / 2)),
+                        negatives: labels.map(l => Math.round((grouped[l].svm_negative + grouped[l].gnb_negative) / 2)),
+                        neutrals: labels.map(l => Math.round((grouped[l].svm_neutral + grouped[l].gnb_neutral) / 2))
+                    };
+                }
+            }
+
+            updateSentimentChart() {
+                const chartTypeEl = document.getElementById("chartTypeFilter");
+                const periodEl = document.getElementById("periodFilter");
+                const modelFilterEl = document.getElementById("modelFilter");
+                
+                if (!chartTypeEl || !periodEl) return;
+                
+                const chartType = chartTypeEl.value;
+                const period = periodEl.value;
+                const modelFilter = modelFilterEl?.value || 'combined';
+                const data = this.processDataForChart(period);
+
+                if (this.sentimentChart) {
+                    this.sentimentChart.destroy();
+                }
+
+                const chartCanvas = document.getElementById("sentimentTrendChart");
+                if (!chartCanvas) return;
+
+                const modelTitle = modelFilter === 'svm' ? 'SVM' : 
+                                 modelFilter === 'gnb' ? 'GNB' : 'Combined';
+
+                const config = {
+                    type: chartType === 'area' ? 'line' : chartType,
+                    data: {
+                        labels: data.labels,
+                        datasets: [
+                            {
+                                label: `Positif (${modelTitle})`,
+                                data: data.positives,
+                                borderColor: "#27ae60",
+                                backgroundColor: chartType === 'area' ? "rgba(39, 174, 96, 0.2)" : "rgba(39, 174, 96, 0.8)",
+                                fill: chartType === 'area',
+                                tension: 0.4
+                            },
+                            {
+                                label: `Negatif (${modelTitle})`,
+                                data: data.negatives,
+                                borderColor: "#e74c3c",
+                                backgroundColor: chartType === 'area' ? "rgba(231, 76, 60, 0.2)" : "rgba(231, 76, 60, 0.8)",
+                                fill: chartType === 'area',
+                                tension: 0.4
+                            },
+                            {
+                                label: `Netral (${modelTitle})`,
+                                data: data.neutrals,
+                                borderColor: "#95a5a6",
+                                backgroundColor: chartType === 'area' ? "rgba(149, 165, 166, 0.2)" : "rgba(149, 165, 166, 0.8)",
+                                fill: chartType === 'area',
+                                tension: 0.4
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: {
+                            duration: 800,
+                            easing: 'easeInOutQuart'
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#fff',
+                                bodyColor: '#fff',
+                                borderColor: '#667eea',
+                                borderWidth: 1
+                            }
+                        },
+                        scales: {
+                            x: {
+                                display: true,
+                                title: {
+                                    display: true,
+                                    text: 'Periode'
+                                },
+                                grid: {
+                                    color: 'rgba(0, 0, 0, 0.1)'
+                                }
+                            },
+                            y: {
+                                display: true,
+                                title: {
+                                    display: true,
+                                    text: 'Jumlah'
+                                },
+                                beginAtZero: true,
+                                grid: {
+                                    color: 'rgba(0, 0, 0, 0.1)'
+                                }
+                            }
+                        },
+                        interaction: {
+                            mode: 'nearest',
+                            axis: 'x',
+                            intersect: false
+                        }
+                    }
+                };
+
+                try {
+                    this.sentimentChart = new Chart(chartCanvas, config);
+                } catch (error) {
+                    console.error('Error creating sentiment chart:', error);
+                }
+            }
+
+            updateDistributionChart() {
+                const filtered = this.getFilteredData();
+                const modelFilter = document.getElementById("modelFilter")?.value || 'combined';
+                
+                let pos, neg, neu;
+
+                if (modelFilter === 'svm') {
+                    pos = filtered.filter(i => i.svm?.toLowerCase().includes("positif")).length;
+                    neg = filtered.filter(i => i.svm?.toLowerCase().includes("negatif")).length;
+                    neu = filtered.filter(i => !i.svm?.toLowerCase().includes("positif") && 
+                                              !i.svm?.toLowerCase().includes("negatif")).length;
+                } else if (modelFilter === 'gnb') {
+                    pos = filtered.filter(i => i.gnb?.toLowerCase().includes("positif")).length;
+                    neg = filtered.filter(i => i.gnb?.toLowerCase().includes("negatif")).length;
+                    neu = filtered.filter(i => !i.gnb?.toLowerCase().includes("positif") && 
+                                              !i.gnb?.toLowerCase().includes("negatif")).length;
+                } else {
+                    // Combined (consensus)
+                    pos = filtered.filter(i => 
+                        i.svm?.toLowerCase().includes("positif") && 
+                        i.gnb?.toLowerCase().includes("positif")).length;
+                    neg = filtered.filter(i => 
+                        i.svm?.toLowerCase().includes("negatif") && 
+                        i.gnb?.toLowerCase().includes("negatif")).length;
+                    neu = filtered.length - pos - neg;
+                }
+
+                if (this.distributionChart) {
+                    this.distributionChart.destroy();
+                }
+
+                const chartCanvas = document.getElementById("sentimentDistributionChart");
+                if (!chartCanvas) return;
+
+                const modelTitle = modelFilter === 'svm' ? 'SVM' : 
+                                 modelFilter === 'gnb' ? 'GNB' : 'Consensus';
+
+                try {
+                    this.distributionChart = new Chart(chartCanvas, {
+                        type: "doughnut",
+                        data: {
+                            labels: [`Positif (${modelTitle})`, `Negatif (${modelTitle})`, `Netral (${modelTitle})`],
+                            datasets: [{
+                                data: [pos, neg, neu],
+                                backgroundColor: [
+                                    "rgba(39, 174, 96, 0.6)",
+                                    "rgba(231, 76, 60, 0.6)",
+                                    "rgba(149, 165, 166, 0.6)"
+                                ],
+                                borderWidth: 0,
+                                cutout: '65%',
+                                hoverOffset: 15
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            animation: {
+                                duration: 1000,
+                                easing: 'easeInOutQuart'
+                            },
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    labels: {
+                                        padding: 20,
+                                        font: {
+                                            size: 12
+                                        }
+                                    }
+                                },
+                                tooltip: {
+                                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                    titleColor: '#fff',
+                                    bodyColor: '#fff',
+                                    callbacks: {
+                                        label: function(context) {
+                                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                            const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : 0;
+                                            return `${context.label}: ${context.parsed} (${percentage}%)`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error creating distribution chart:', error);
+                }
+            }
+
+            updateStats() {
+                const filtered = this.getFilteredData();
+                const successful = filtered.filter(i => i.svm !== 'Error' && i.svm !== 'Skipped');
+                
+                // Overall stats
+                const total = filtered.length;
+                const processed = successful.length;
+                const accuracy = total > 0 ? ((processed / total) * 100).toFixed(1) : 0;
+
+                // SVM stats
+                const svmPos = successful.filter(i => i.svm?.toLowerCase().includes("positif")).length;
+                const svmNeg = successful.filter(i => i.svm?.toLowerCase().includes("negatif")).length;
+                const svmNeu = successful.length - svmPos - svmNeg;
+
+                // GNB stats
+                const gnbPos = successful.filter(i => i.gnb?.toLowerCase().includes("positif")).length;
+                const gnbNeg = successful.filter(i => i.gnb?.toLowerCase().includes("negatif")).length;
+                const gnbNeu = successful.length - gnbPos - gnbNeg;
+
+                // Combined stats (consensus)
+                const pos = Math.round((svmPos + gnbPos) / 2);
+                const neg = Math.round((svmNeg + gnbNeg) / 2);
+                const neu = Math.round((svmNeu + gnbNeu) / 2);
+
+                // Update main stats
+                const elTotal = document.getElementById("totalCount");
+                if (elTotal) elTotal.textContent = total.toLocaleString();
+
+                const elProcessed = document.getElementById("processedCount");
+                if (elProcessed) elProcessed.textContent = processed.toLocaleString();
+
+                const elPos = document.getElementById("positiveCount");
+                if (elPos) elPos.textContent = pos.toLocaleString();
+
+                const elNeg = document.getElementById("negativeCount");
+                if (elNeg) elNeg.textContent = neg.toLocaleString();
+
+                const elNeu = document.getElementById("neutralCount");
+                if (elNeu) elNeu.textContent = neu.toLocaleString();
+
+                const elAccuracy = document.getElementById("accuracyCount");
+                if (elAccuracy) elAccuracy.textContent = accuracy + '%';
+
+                // Update model comparison
+                const elSvmPos = document.getElementById("svmPositive");
+                if (elSvmPos) elSvmPos.textContent = svmPos.toLocaleString();
+
+                const elSvmNeg = document.getElementById("svmNegative");
+                if (elSvmNeg) elSvmNeg.textContent = svmNeg.toLocaleString();
+
+                const elSvmNeu = document.getElementById("svmNeutral");
+                if (elSvmNeu) elSvmNeu.textContent = svmNeu.toLocaleString();
+
+                const elGnbPos = document.getElementById("gnbPositive");
+                if (elGnbPos) elGnbPos.textContent = gnbPos.toLocaleString();
+
+                const elGnbNeg = document.getElementById("gnbNegative");
+                if (elGnbNeg) elGnbNeg.textContent = gnbNeg.toLocaleString();
+
+                const elGnbNeu = document.getElementById("gnbNeutral");
+                if (elGnbNeu) elGnbNeu.textContent = gnbNeu.toLocaleString();
+
+            }
+
+            getConfidenceClass(confidence) {
+                if (!confidence) return 'confidence-low';
+                if (confidence >= 0.8) return 'confidence-high';
+                if (confidence >= 0.6) return 'confidence-medium';
+                return 'confidence-low';
+            }
+
+            getConfidenceWidth(confidence) {
+                return confidence ? (confidence * 100) + '%' : '0%';
+            }
+
+            updateDataTable() {
+                const filtered = this.getFilteredData()
+                    .filter(item => item.svm !== 'Error' && item.svm !== 'Skipped')
+                    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+                    .slice(0, 100); // Show latest 100 records
+
+                const tbody = document.querySelector('#dataTable tbody');
+                tbody.innerHTML = '';
+
+                filtered.forEach(item => {
+                    const row = tbody.insertRow();
+                    const date = new Date(item.timestamp);
+                    
+                    // Date column
+                    row.insertCell(0).textContent = date.toLocaleDateString('id-ID');
+                    
+                    // Text preview column
+                    const textCell = row.insertCell(1);
+                    const text = item.text || '';
+                    textCell.textContent = text.length > 60 ? text.substring(0, 60) + '...' : text;
+                    textCell.style.maxWidth = '300px';
+                    textCell.title = text; // Full text on hover
+                    
+                    // SVM result column
+                    const svmCell = row.insertCell(2);
+                    const svmSentiment = item.svm || 'Unknown';
+                    svmCell.textContent = svmSentiment.charAt(0).toUpperCase() + svmSentiment.slice(1);
+                    svmCell.className = svmSentiment.toLowerCase().includes('positif') ? 'positive' : 
+                                       svmSentiment.toLowerCase().includes('negatif') ? 'negative' : 'neutral';
+                    
+                    // GNB result column
+                    const gnbCell = row.insertCell(3);
+                    const gnbSentiment = item.gnb || 'Unknown';
+                    gnbCell.textContent = gnbSentiment.charAt(0).toUpperCase() + gnbSentiment.slice(1);
+                    gnbCell.className = gnbSentiment.toLowerCase().includes('positif') ? 'positive' : 
+                                       gnbSentiment.toLowerCase().includes('negatif') ? 'negative' : 'neutral';
+                    
+                    // Confidence column
+                    const confidenceCell = row.insertCell(4);
+                    const svmConf = item.confidence_svm;
+                    const gnbConf = item.confidence_gnb;
+                    
+                    if (svmConf || gnbConf) {
+                        const avgConf = svmConf && gnbConf ? (svmConf + gnbConf) / 2 : (svmConf || gnbConf);
+                        confidenceCell.innerHTML = `
+                            <div style="font-size: 0.8rem;">${(avgConf * 100).toFixed(1)}%</div>
+                            <div class="confidence-bar">
+                                <div class="confidence-fill ${this.getConfidenceClass(avgConf)}" 
+                                     style="width: ${this.getConfidenceWidth(avgConf)}"></div>
+                            </div>
+                        `;
+                    } else {
+                        confidenceCell.textContent = 'N/A';
+                    }
+                });
+
+                const tableContainer = document.getElementById('dataTableContainer');
+                tableContainer.style.display = filtered.length > 0 ? 'block' : 'none';
+            }
+
+            updateDashboard() {
+                this.updateStats();
+                this.updateSentimentChart();
+                this.updateDistributionChart();
+                this.updateDataTable();
+            }
+
+            enableButtons() {
+                const buttons = [
+                    "exportCsvBtn", 
+                    "exportChartBtn", 
+                    "generateReportBtn", 
+                    "clearDataBtn"
+                ];
+                
+                buttons.forEach(buttonId => {
+                    const button = document.getElementById(buttonId);
+                    if (button) {
+                        button.disabled = false;
+                    }
+                });
+            }
+
+            exportCSV() {
+                const filtered = this.getFilteredData();
+                const headers = ['Date', 'Text', 'SVM_Result', 'GNB_Result', 'SVM_Confidence', 'GNB_Confidence', 'Agreement'];
+                const csvContent = [
+                    headers.join(','),
+                    ...filtered.map(row => {
+                        const agreement = (row.svm === row.gnb) ? 'Yes' : 'No';
+                        return [
+                            `"${new Date(row.timestamp).toLocaleDateString('id-ID')}"`,
+                            `"${(row.text || '').replace(/"/g, '""')}"`,
+                            row.svm || 'Unknown',
+                            row.gnb || 'Unknown',
+                            row.confidence_svm ? (row.confidence_svm * 100).toFixed(1) + '%' : 'N/A',
+                            row.confidence_gnb ? (row.confidence_gnb * 100).toFixed(1) + '%' : 'N/A',
+                            agreement
+                        ].join(',');
+                    })
+                ].join('\n');
+
+                const blob = new Blob([csvContent], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `ml_sentiment_analysis_${new Date().toISOString().split('T')[0]}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+                this.showMessage('✅ ML analysis data berhasil diexport ke CSV!', 'success');
+            }
+
+            exportChart() {
+                const canvas = document.getElementById('sentimentTrendChart');
+                const url = canvas.toDataURL('image/png');
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `ml_sentiment_chart_${new Date().toISOString().split('T')[0]}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+
+                this.showMessage('✅ Chart berhasil diexport!', 'success');
+            }
+
+            generateReport() {
+                const filtered = this.getFilteredData();
+                const successful = filtered.filter(i => i.svm !== 'Error' && i.svm !== 'Skipped');
+                
+                // Calculate stats
+                const total = filtered.length;
+                const processed = successful.length;
+                const accuracy = total > 0 ? ((processed / total) * 100).toFixed(1) : 0;
+
+                // SVM stats
+                const svmPos = successful.filter(i => i.svm?.toLowerCase().includes("positif")).length;
+                const svmNeg = successful.filter(i => i.svm?.toLowerCase().includes("negatif")).length;
+                const svmNeu = successful.length - svmPos - svmNeg;
+
+                // GNB stats
+                const gnbPos = successful.filter(i => i.gnb?.toLowerCase().includes("positif")).length;
+                const gnbNeg = successful.filter(i => i.gnb?.toLowerCase().includes("negatif")).length;
+                const gnbNeu = successful.length - gnbPos - gnbNeg;
+
+                // Agreement analysis
+                const agreements = successful.filter(i => i.svm === i.gnb).length;
+                const agreementRate = successful.length > 0 ? ((agreements / successful.length) * 100).toFixed(1) : 0;
+
+                const startDate = document.getElementById('dateRangeStart').value || 'N/A';
+                const endDate = document.getElementById('dateRangeEnd').value || 'N/A';
+
+                const report = `
+LAPORAN ANALISIS SENTIMENT - MACHINE LEARNING
+=============================================
+
+Periode Analisis: ${startDate} - ${endDate}
+Tanggal Generate: ${new Date().toLocaleString('id-ID')}
+Model yang Digunakan: Support Vector Machine (SVM) & Naive Bayes (NB)
+
+RINGKASAN STATISTIK:
+==================
+• Total Data: ${total.toLocaleString()}
+• Data Berhasil Diproses: ${processed.toLocaleString()}
+• Tingkat Keberhasilan: ${accuracy}%
+• Tingkat Kesepakatan Model: ${agreementRate}%
+
+HASIL ANALISIS SVM:
+==================
+• Sentiment Positif: ${svmPos.toLocaleString()} (${processed > 0 ? ((svmPos/processed)*100).toFixed(1) : 0}%)
+• Sentiment Negatif: ${svmNeg.toLocaleString()} (${processed > 0 ? ((svmNeg/processed)*100).toFixed(1) : 0}%)
+• Sentiment Netral: ${svmNeu.toLocaleString()} (${processed > 0 ? ((svmNeu/processed)*100).toFixed(1) : 0}%)
+
+HASIL ANALISIS NAIVE BAYES:
+====================================
+• Sentiment Positif: ${gnbPos.toLocaleString()} (${processed > 0 ? ((gnbPos/processed)*100).toFixed(1) : 0}%)
+• Sentiment Negatif: ${gnbNeg.toLocaleString()} (${processed > 0 ? ((gnbNeg/processed)*100).toFixed(1) : 0}%)
+• Sentiment Netral: ${gnbNeu.toLocaleString()} (${processed > 0 ? ((gnbNeu/processed)*100).toFixed(1) : 0}%)
+
+ANALISIS KOMPARATIF:
+===================
+${svmPos > gnbPos ? '🔍 SVM mendeteksi lebih banyak sentiment positif' : 
+  gnbPos > svmPos ? '🧠 GNB mendeteksi lebih banyak sentiment positif' : 
+  '⚖️  Kedua model mendeteksi jumlah sentiment positif yang serupa'}
+
+${svmNeg > gnbNeg ? '🔍 SVM mendeteksi lebih banyak sentiment negatif' : 
+  gnbNeg > svmNeg ? '🧠 GNB mendeteksi lebih banyak sentiment negatif' : 
+  '⚖️  Kedua model mendeteksi jumlah sentiment negatif yang serupa'}
+
+INSIGHT UTAMA:
+=============
+${Math.max(svmPos, gnbPos) > Math.max(svmNeg, gnbNeg) ? 
+    `✅ Sentiment positif mendominasi dengan rata-rata ${(((svmPos + gnbPos)/2/processed)*100).toFixed(1)}%` :
+    `⚠️ Sentiment negatif mendominasi dengan rata-rata ${(((svmNeg + gnbNeg)/2/processed)*100).toFixed(1)}%`}
+
+${agreementRate > 80 ? 
+    `🤝 Tingkat kesepakatan model sangat tinggi (${agreementRate}%), menunjukkan hasil yang konsisten` :
+    agreementRate > 60 ?
+    `📊 Tingkat kesepakatan model cukup baik (${agreementRate}%), namun masih ada variasi dalam prediksi` :
+    `⚠️ Tingkat kesepakatan model rendah (${agreementRate}%), menunjukkan adanya ambiguitas dalam data`}
+
+REKOMENDASI:
+===========
+${Math.max(svmPos, gnbPos) > Math.max(svmNeg, gnbNeg) ? 
+    `• Pertahankan strategi yang menghasilkan sentiment positif
+• Identifikasi dan replikasi faktor-faktor yang berkontribusi positif
+• Monitor secara berkala untuk memastikan tren tetap positif` :
+    `• Perlu perhatian khusus untuk mengatasi sentiment negatif
+• Analisis lebih mendalam terhadap sumber-sumber sentiment negatif
+• Implementasi strategi perbaikan berdasarkan feedback negatif`}
+
+${agreementRate < 70 ? 
+    `• Pertimbangkan untuk melakukan ensemble learning atau voting
+• Evaluasi kembali preprocessing dan feature engineering
+• Lakukan hyperparameter tuning untuk meningkatkan konsistensi model` : ''}
+
+METODOLOGI:
+===========
+• Preprocessing: Sastrawi (stemming & stopword removal)
+• Feature Extraction: TF-IDF Vectorization
+• Models: Support Vector Machine & Naive Bayes
+• Evaluation: Cross-model agreement analysis
+
+---
+Generated by ML Sentiment Analysis Dashboard
+Powered by SVM & GNB
+`.trim();
+
+                const blob = new Blob([report], { type: 'text/plain' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `ml_sentiment_report_${new Date().toISOString().split('T')[0]}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+                this.showMessage('✅ Report berhasil digenerate!', 'success');
+            }
+
+            clearData() {
+                if (confirm('Apakah Anda yakin ingin menghapus semua data? Aksi ini tidak dapat dibatalkan.')) {
+                    this.dashboardData = [];
+                    
+                    // Reset UI ke keadaan semula
+                    this.updateDashboard(); // Ini akan membersihkan stats dan chart
+                    document.getElementById('filtersSection').style.display = 'none';
+                    document.getElementById('chartsContainer').style.display = 'none';
+                    document.getElementById('actionsSection').style.display = 'none';
+                    document.getElementById('modelComparison').style.display = 'none';
+                    document.getElementById('dataTableContainer').style.display = 'none';
+
+                    // Matikan kembali tombol-tombol aksi
+                    document.getElementById("exportCsvBtn").disabled = true;
+                    document.getElementById("exportChartBtn").disabled = true;
+                    document.getElementById("generateReportBtn").disabled = true;
+                    document.getElementById("clearDataBtn").disabled = true;
+
+                    this.showMessage('🗑️ Data berhasil dihapus. Upload file baru untuk memulai lagi.', 'warning');
+                }
+            }
+
+            setupEventListeners() {
+                // Event listener untuk input file CSV
+                document.getElementById("csvFileInput").addEventListener("change", (e) => this.handleFileUpload(e));
+
+                // Event listener untuk semua filter
+                const filters = ["periodFilter", "yearFilter", "chartTypeFilter", "dateRangeStart", "dateRangeEnd", "modelFilter"];
+                filters.forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.addEventListener("change", () => this.updateDashboard());
+                    }
+                });
+                
+                // Event listener untuk tombol-tombol aksi
+                document.getElementById("refreshBtn").addEventListener("click", () => {
+                    const fileInput = document.getElementById("csvFileInput");
+                    if (fileInput.files && fileInput.files[0]) {
+                        this.handleFileUpload({ target: fileInput });
+                    } else {
+                        this.showMessage('⚠️ Pilih file CSV terlebih dahulu untuk di-refresh', 'warning');
+                    }
+                });
+
+                document.getElementById("exportCsvBtn").addEventListener("click", () => this.exportCSV());
+                document.getElementById("exportChartBtn").addEventListener("click", () => this.exportChart());
+                document.getElementById("generateReportBtn").addEventListener("click", () => this.generateReport());
+                document.getElementById("clearDataBtn").addEventListener("click", () => this.clearData());
+
+                // Pintasan keyboard untuk kemudahan penggunaan
+                document.addEventListener('keydown', (e) => {
+                    if (e.ctrlKey || e.metaKey) { // metaKey untuk MacOS
+                        switch(e.key.toLowerCase()) {
+                            case 'o': // Ctrl+O untuk Buka File
+                                e.preventDefault();
+                                document.getElementById('csvFileInput').click();
+                                break;
+                            case 's': // Ctrl+S untuk Simpan CSV
+                                e.preventDefault();
+                                if(!document.getElementById("exportCsvBtn").disabled) {
+                                    document.getElementById("exportCsvBtn").click();
+                                }
+                                break;
+              case 'p': // Ctrl+P for Export Chart
+    e.preventDefault();
+    if (!document.getElementById("exportChartBtn").disabled) {
+        document.getElementById("exportChartBtn").click();
+    }
+    break;
+
+                                if(!document.getElementById("exportChartBtn").disabled) {
+                                    document.getElementById("exportChartBtn").click();
+                                }
+                                break;
+                        }
+                    }
+                });
+            }
+        }
+
+        // Inisialisasi dashboard saat halaman selesai dimuat
+        document.addEventListener('DOMContentLoaded', () => {
+            new MLSentimentDashboard();
+        });
+    </script>
+</body>
+</html>

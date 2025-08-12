@@ -469,6 +469,8 @@
             }
         }
     </style>
+    <script src="dashboard.js" defer></script>
+
 </head>
 <body>
     <div class="status-indicator" id="statusIndicator">
@@ -481,7 +483,10 @@
                 <div class="user-badge">
                     <i class="fas fa-user"></i> {{ username }}
                 </div>
-                <a href="/logout" class="logout-btn">
+                <a href="{{ url_for('dashboard') }}" class="logout-btn">
+                    <i class="fas fa-chart-bar"></i> Dashboard
+                </a>
+                <a href="{{ url_for('logout') }}" class="logout-btn">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </a>
             </div>
@@ -490,7 +495,6 @@
         </div>
 
         <div class="content">
-            <!-- Flash Messages -->
             {% with messages = get_flashed_messages(with_categories=true) %}
               {% if messages %}
                 {% for category, message in messages %}
@@ -521,24 +525,21 @@
                 </div>
             </div>
 
-            <!-- Reset Button -->
             <div class="text-center mb-4">
                 <button class="btn btn-sm btn-outline-danger" onclick="resetStats()">
                     <i class="fas fa-sync-alt"></i> Reset Statistik
                 </button>
             </div>
 
-            <!-- Method Selection Tabs -->
             <div class="method-tabs">
-                <button class="tab-btn active" onclick="switchTab('manual')">
+                <button class="tab-btn active" onclick="switchTab('manual', event)">
                     <i class="fas fa-keyboard"></i> Input Manual
                 </button>
-                <button class="tab-btn" onclick="switchTab('file')">
+                <button class="tab-btn" onclick="switchTab('file', event)">
                     <i class="fas fa-file-upload"></i> Upload File CSV
                 </button>
             </div>
 
-            <!-- Manual Input Tab -->
             <div id="manual-tab" class="tab-content active">
                 <div class="input-section">
                     <label for="reviewText" class="form-label">
@@ -583,28 +584,27 @@
                     <div class="result-card" id="gnbResult">
                         <div class="result-header">
                             <i class="fas fa-brain result-icon"></i>
-                            <h5 class="result-title">Gaussian Naive Bayes (GNB)</h5>
+                            <h5 class="result-title"> Naive Bayes (GNB)</h5>
                         </div>
                         <div class="result-value" id="gnbValue">-</div>
                     </div>
                 </div>
             </div>
 
-            <!-- File Upload Tab -->
             <div id="file-tab" class="tab-content">
                 <div class="input-section">
                     <label class="form-label">
                         <i class="fas fa-file-csv"></i> Upload File CSV untuk Analisis Batch
                     </label>
                     
-                    <form action="/upload" method="post" enctype="multipart/form-data" id="uploadForm">
+                    <form id="uploadForm">
                         <div class="file-upload" id="fileUpload">
                             <div class="upload-icon">
                                 <i class="fas fa-cloud-upload-alt"></i>
                             </div>
                             <h5>Klik atau seret file CSV ke sini</h5>
                             <p class="text-muted mb-3">
-                                File harus berformat CSV dengan kolom yang berisi teks ulasan
+                                File harus berformat CSV dengan kolom teks dan (opsional) kolom tanggal.
                             </p>
                             <input type="file" name="file" id="fileInput" class="file-input" accept=".csv" required>
                             <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('fileInput').click()">
@@ -628,9 +628,9 @@
                             <i class="fas fa-info-circle"></i> 
                             <strong>Format CSV yang didukung:</strong>
                             <br>
-                            • Kolom dengan nama: 'text', 'review', 'ulasan', 'komentar', atau 'comment'
+                            • Kolom teks: 'text', 'review', 'ulasan', 'komentar', atau 'comment'
                             <br>
-                            • Jika tidak ada kolom dengan nama tersebut, akan menggunakan kolom pertama
+                            • Kolom tanggal: 'date', 'tanggal', 'timestamp', atau 'waktu'
                             <br>
                             • Maksimal ukuran file: 16MB
                         </small>
@@ -646,10 +646,11 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Configuration
+        // ======================================================================
+        // ▼▼▼ SELURUH BAGIAN SCRIPT DI BAWAH INI TELAH DIPERBARUI ▼▼▼
+        // ======================================================================
         const API_BASE_URL = window.location.origin;
         
-        // Statistics tracking
         let stats = {
             total: 0,
             positive: 0,
@@ -657,50 +658,38 @@
             neutral: 0
         };
 
-        // Tab switching functionality
-        function switchTab(tab) {
-            // Remove active class from all tabs and contents
+        function switchTab(tab, event) {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            
-            // Add active class to selected tab and content
             event.target.classList.add('active');
             document.getElementById(tab + '-tab').classList.add('active');
-            
-            // Hide results when switching tabs
             hideResults();
         }
 
-        // File upload functionality
         function setupFileUpload() {
             const fileUpload = document.getElementById('fileUpload');
             const fileInput = document.getElementById('fileInput');
             const fileSelected = document.getElementById('fileSelected');
             const fileName = document.getElementById('fileName');
 
-            // Click to select file
             fileUpload.addEventListener('click', (e) => {
-                if (e.target.tagName !== 'BUTTON') {
+                if (e.target.tagName !== 'BUTTON' && e.target.parentElement.tagName !== 'BUTTON') {
                     fileInput.click();
                 }
             });
 
-            // File selection handler
             fileInput.addEventListener('change', function() {
                 if (this.files.length > 0) {
                     const file = this.files[0];
                     fileName.textContent = file.name;
                     fileSelected.style.display = 'block';
                     
-                    // Validate file type
                     if (!file.name.toLowerCase().endsWith('.csv')) {
                         showError('Harap pilih file CSV yang valid!');
                         this.value = '';
                         fileSelected.style.display = 'none';
                         return;
                     }
-                    
-                    // Validate file size (16MB limit)
                     if (file.size > 16 * 1024 * 1024) {
                         showError('Ukuran file terlalu besar! Maksimal 16MB.');
                         this.value = '';
@@ -710,35 +699,24 @@
                 }
             });
 
-            // Drag and drop functionality
-            fileUpload.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                fileUpload.classList.add('dragover');
+            ['dragover', 'dragleave', 'drop'].forEach(eventName => {
+                fileUpload.addEventListener(eventName, e => e.preventDefault(), false);
             });
-
-            fileUpload.addEventListener('dragleave', () => {
-                fileUpload.classList.remove('dragover');
-            });
-
+            fileUpload.addEventListener('dragover', () => fileUpload.classList.add('dragover'));
+            fileUpload.addEventListener('dragleave', () => fileUpload.classList.remove('dragover'));
             fileUpload.addEventListener('drop', (e) => {
-                e.preventDefault();
                 fileUpload.classList.remove('dragover');
-                
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    fileInput.files = files;
+                if (e.dataTransfer.files.length > 0) {
+                    fileInput.files = e.dataTransfer.files;
                     fileInput.dispatchEvent(new Event('change'));
                 }
             });
         }
 
-        // Load stats from localStorage (but remove dependency)
         function loadStats() {
-            // Stats will be managed in memory during session only
             updateStatsDisplay();
         }
 
-        // Update stats display
         function updateStatsDisplay() {
             document.getElementById('totalAnalyzed').textContent = stats.total;
             document.getElementById('positiveCount').textContent = stats.positive;
@@ -746,48 +724,31 @@
             document.getElementById('neutralCount').textContent = stats.neutral;
         }
 
-        // Update stats based on results
-        function updateStats(svmResult, gnbResult) {
+        function updateStats(svmResult) {
             stats.total++;
-            
-            // Count based on SVM result (primary model)
-            if (svmResult.toLowerCase().includes('positif')) {
-                stats.positive++;
-            } else if (svmResult.toLowerCase().includes('negatif')) {
-                stats.negative++;
-            } else {
-                stats.neutral++;
-            }
-            
+            if (svmResult.toLowerCase().includes('positif')) stats.positive++;
+            else if (svmResult.toLowerCase().includes('negatif')) stats.negative++;
+            else stats.neutral++;
             updateStatsDisplay();
         }
 
-        // Reset statistics
         function resetStats() {
-            if (confirm('Apakah Anda yakin ingin me-reset statistik analisis?')) {
-                stats = {
-                    total: 0,
-                    positive: 0,
-                    negative: 0,
-                    neutral: 0
-                };
+            if (confirm('Apakah Anda yakin ingin me-reset statistik? Ini juga akan menghapus data di dashboard.')) {
+                stats = { total: 0, positive: 0, negative: 0, neutral: 0 };
+                localStorage.removeItem('sentimentAnalyses');
                 updateStatsDisplay();
-                showSuccess('Statistik berhasil di-reset!');
+                showSuccess('Statistik dan data dashboard berhasil di-reset!');
             }
         }
 
-        // Check server status
         async function checkServerStatus() {
             try {
                 const response = await fetch(`${API_BASE_URL}/health`);
                 const data = await response.json();
-                
                 const statusIndicator = document.getElementById('statusIndicator');
-                
                 if (response.ok && data.status === 'healthy') {
                     statusIndicator.className = 'status-indicator status-online';
                     statusIndicator.innerHTML = '<i class="fas fa-check-circle"></i> Server Online';
-                    return true;
                 } else {
                     throw new Error('Server unhealthy');
                 }
@@ -795,143 +756,161 @@
                 const statusIndicator = document.getElementById('statusIndicator');
                 statusIndicator.className = 'status-indicator status-offline';
                 statusIndicator.innerHTML = '<i class="fas fa-exclamation-circle"></i> Server Offline';
-                return false;
+            }
+        }
+        
+        function saveAnalysisToLocal(analysis) {
+            try {
+                const analyses = JSON.parse(localStorage.getItem('sentimentAnalyses')) || [];
+                analyses.push(analysis);
+                localStorage.setItem('sentimentAnalyses', JSON.stringify(analyses));
+            } catch (e) {
+                console.error("Gagal menyimpan ke localStorage:", e);
+                showError("Gagal menyimpan data ke browser.");
             }
         }
 
-        // Make prediction using Flask API
         async function predictSentiment() {
             const text = document.getElementById('reviewText').value.trim();
+            if (!text || text.length < 5) {
+                return showError(!text ? 'Harap masukkan teks ulasan.' : 'Teks terlalu pendek (minimal 5 karakter).');
+            }
+
             const predictBtn = document.getElementById('predictBtn');
             const loading = document.getElementById('loading');
             const resultsSection = document.getElementById('resultsSection');
-
-            // Validate input
-            if (!text) {
-                showError('Harap masukkan teks ulasan terlebih dahulu.');
-                return;
-            }
-
-            if (text.length < 5) {
-                showError('Teks terlalu pendek. Masukkan ulasan yang lebih detail (minimal 5 karakter).');
-                return;
-            }
-
-            // Show loading
+            
             hideMessages();
             predictBtn.disabled = true;
             loading.style.display = 'block';
             resultsSection.style.display = 'none';
 
             try {
-                // Make API request
                 const response = await fetch(`${API_BASE_URL}/predict`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text: text })
                 });
 
                 const data = await response.json();
+                if (!response.ok || !data.success) throw new Error(data.error || 'Prediction failed');
 
-                if (!response.ok) {
-                    throw new Error(data.error || 'Server error');
-                }
-
-                if (!data.success) {
-                    throw new Error(data.error || 'Prediction failed');
-                }
-
-                // Update results
-                const predictions = data.predictions;
+                const { predictions, input_text } = data;
                 document.getElementById('svmValue').textContent = predictions.svm;
                 document.getElementById('gnbValue').textContent = predictions.gnb;
-
-                // Set card styles
                 setResultStyle('svmResult', predictions.svm);
                 setResultStyle('gnbResult', predictions.gnb);
+                updateStats(predictions.svm);
+                
+                saveAnalysisToLocal({
+                    text: input_text,
+                    svm: predictions.svm,
+                    gnb: predictions.gnb,
+                    source: 'manual',
+                    timestamp: new Date().toISOString()
+                });
 
-                // Update statistics
-                updateStats(predictions.svm, predictions.gnb);
-
-                // Show success message
                 showSuccess('Analisis sentimen berhasil!');
-
-                // Show results
-                loading.style.display = 'none';
                 resultsSection.style.display = 'block';
 
-                // Add animation delay for cards
-                setTimeout(() => {
-                    document.getElementById('svmResult').style.animationDelay = '0.1s';
-                    document.getElementById('gnbResult').style.animationDelay = '0.3s';
-                }, 100);
-
             } catch (error) {
-                loading.style.display = 'none';
-                
-                let errorMessage = 'Terjadi kesalahan saat menganalisis sentimen.';
-                
-                if (error.message.includes('fetch')) {
-                    errorMessage = 'Tidak dapat terhubung ke server. Pastikan server berjalan.';
-                } else if (error.message) {
-                    errorMessage = error.message;
-                }
-                
-                showError(errorMessage);
+                showError(error.message.includes('fetch') ? 'Tidak dapat terhubung ke server.' : error.message);
                 console.error('Prediction error:', error);
             } finally {
                 predictBtn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+        
+        async function handleFileUpload(event) {
+            event.preventDefault();
+            
+            const form = document.getElementById('uploadForm');
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+
+            if (!file) return showError('Silakan pilih file CSV terlebih dahulu.');
+
+            const fileTab = document.getElementById('file-tab');
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'loading';
+            loadingDiv.innerHTML = '<div class="spinner"></div><p>Mengupload dan menganalisis file...</p>';
+            fileTab.appendChild(loadingDiv);
+            hideMessages();
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch("{{ url_for('upload_file') }}", {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const data = await response.json();
+                if (!response.ok || !data.success) throw new Error(data.error || 'Gagal memproses file.');
+
+                let savedCount = 0;
+                data.results.forEach(result => {
+                    if (result.svm !== 'Skipped' && result.svm !== 'Error') {
+                        saveAnalysisToLocal({
+                            text: result.text,
+                            svm: result.svm,
+                            gnb: result.gnb,
+                            source: 'csv-upload',
+                            timestamp: result.timestamp
+                        });
+                        savedCount++;
+                    }
+                });
+                
+                showSuccess(`${savedCount} baris data berhasil dianalisis dan disimpan. Cek hasilnya di halaman Dashboard.`);
+
+            } catch (error) {
+                showError(error.message);
+                console.error('File upload error:', error);
+            } finally {
+                fileTab.removeChild(loadingDiv);
+                form.reset();
+                document.getElementById('fileSelected').style.display = 'none';
             }
         }
 
-        // Set result card style based on sentiment
         function setResultStyle(cardId, sentiment) {
             const card = document.getElementById(cardId);
             card.className = 'result-card';
-            
-            if (sentiment.toLowerCase().includes('positif')) {
-                card.classList.add('positive');
-            } else if (sentiment.toLowerCase().includes('negatif')) {
-                card.classList.add('negative');
-            } else {
-                card.classList.add('neutral');
-            }
+            const sentimentClass = sentiment.toLowerCase().includes('positif') ? 'positive'
+                               : sentiment.toLowerCase().includes('negatif') ? 'negative'
+                               : 'neutral';
+            card.classList.add(sentimentClass);
         }
 
-        // Hide results section
         function hideResults() {
             document.getElementById('resultsSection').style.display = 'none';
             hideMessages();
         }
 
-        // Show error message
-        function showError(message) {
-            const errorMessage = document.getElementById('errorMessage');
-            errorMessage.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${message}`;
-            errorMessage.style.display = 'block';
+        function showMessage(elementId, message) {
+            const element = document.getElementById(elementId);
+            const icon = elementId === 'errorMessage' ? 'fa-exclamation-triangle' : 'fa-check-circle';
+            element.innerHTML = `<i class="fas ${icon}"></i> ${message}`;
+            element.style.display = 'block';
         }
 
-        // Show success message
+        function showError(message) { showMessage('errorMessage', message); }
         function showSuccess(message) {
-            const successMessage = document.getElementById('successMessage');
-            successMessage.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
-            successMessage.style.display = 'block';
-            
-            // Auto hide success message after 3 seconds
+            showMessage('successMessage', message);
             setTimeout(() => {
-                successMessage.style.display = 'none';
+                const el = document.getElementById('successMessage');
+                if (el) el.style.display = 'none';
             }, 3000);
         }
 
-        // Hide all messages
         function hideMessages() {
             document.getElementById('errorMessage').style.display = 'none';
             document.getElementById('successMessage').style.display = 'none';
         }
 
-        // Set example text
         function setExample(text) {
             const textarea = document.getElementById('reviewText');
             textarea.value = text;
@@ -939,53 +918,45 @@
             textarea.focus();
         }
 
-        // Event listeners
         document.getElementById('predictBtn').addEventListener('click', predictSentiment);
+        document.getElementById('uploadForm').addEventListener('submit', handleFileUpload);
 
-        // Enter key to predict (Ctrl+Enter)
-        document.getElementById('reviewText').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter' && e.ctrlKey) {
-                predictSentiment();
-            }
+        document.getElementById('reviewText').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && e.ctrlKey) predictSentiment();
         });
 
-        // Auto-resize textarea
         document.getElementById('reviewText').addEventListener('input', function() {
             this.style.height = 'auto';
             this.style.height = Math.max(120, this.scrollHeight) + 'px';
         });
 
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', () => {
             loadStats();
             checkServerStatus();
             setupFileUpload();
-            
-            // Check server status every 30 seconds
             setInterval(checkServerStatus, 30000);
             
-            // Add sample examples
             setTimeout(() => {
                 const manualTab = document.getElementById('manual-tab');
                 const inputSection = manualTab.querySelector('.input-section');
                 const exampleDiv = document.createElement('div');
                 exampleDiv.innerHTML = `
                     <div class="mt-3">
-                        <small class="text-muted mb-2 d-block">
-                            <i class="fas fa-lightbulb"></i> Contoh cepat:
-                        </small>
+                        <small class="text-muted mb-2 d-block"><i class="fas fa-lightbulb"></i> Contoh cepat:</small>
                         <div class="d-flex flex-wrap gap-2">
-                            <button class="btn btn-outline-secondary btn-sm" onclick="setExample('Hotel ini sangat bagus! Kamar bersih, pelayanan ramah, dan lokasinya strategis. Sangat recommended!')">
-                                Positif
-                            </button>
-                            <button class="btn btn-outline-secondary btn-sm" onclick="setExample('Kecewa dengan pelayanan hotel ini. Kamar kotor dan AC tidak dingin. Tidak worth it dengan harganya.')">
-                                Negatif
-                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="setExample('Hotel ini sangat bagus! Kamar bersih, pelayanan ramah, dan lokasinya strategis. Sangat recommended!')">Positif</button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="setExample('Kecewa dengan pelayanan hotel ini. Kamar kotor dan AC tidak dingin. Tidak worth it dengan harganya.')">Negatif</button>
                         </div>
-                    </div>
-                `;
+                    </div>`;
                 inputSection.appendChild(exampleDiv);
             }, 1000);
+
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.onclick = (event) => {
+                    const tabName = btn.getAttribute('onclick').match(/'([^']+)'/)[1];
+                    switchTab(tabName, event);
+                };
+            });
         });
     </script>
 </body>
