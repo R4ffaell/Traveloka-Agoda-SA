@@ -80,14 +80,14 @@ def load_models():
         from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
         from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
         
-        # Updated model file paths to match your structure
+        # ganti aja nanti jadi directory file nya
         model_dir = r"C:\Users\anakt\OneDrive\Desktop\Traveloka-Agoda-SA\models"
 
 
         model_files = [
             os.path.join(model_dir, "svm_model.pkl"),
             os.path.join(model_dir, "gnb_model.pkl"),
-            os.path.join(model_dir, "tfidf_vectorizer.pkl")  # adjust if filename differs
+            os.path.join(model_dir, "tfidf_vectorizer.pkl")  
         ]
 
         
