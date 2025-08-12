@@ -176,7 +176,7 @@ def advanced_clean(text):
         return text
 
 def predict_sentiment(text):
-    """Predict sentiment using both SVM and GNB models"""
+    """Predict sentiment using both SVM and NB models"""
     try:
         if not text or not text.strip():
             return None, None, "Input text is empty"
